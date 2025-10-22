@@ -11,7 +11,7 @@ public class GUI {
     public GUI() {
         frame = new JFrame("IsKahoot");
         panel = new JPanel();
-        button = new JButton("Enviar Respostaa");
+        button = new JButton("Enviar Resposta");
         label = new JLabel("Pergunta aparecerá aqui");
 
         panel.add(label);
