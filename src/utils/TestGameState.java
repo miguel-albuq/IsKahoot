@@ -7,7 +7,7 @@ public class TestGameState {
         // Carregar quiz
         QuizCollection qc = JSONLoader.load("resources/questions.json");
         Quiz quiz = qc.getQuizzes().get(0);
-
+    
         // Criar estado do jogo
         GameState state = new GameState(quiz);
 

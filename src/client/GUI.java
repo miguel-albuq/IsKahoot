@@ -14,6 +14,7 @@ public class GUI {
     private ButtonGroup optionsGroup;
     private JLabel scoreLabel;
     private JButton nextButton;
+    private JLabel timerLabel;
 
     private GameState gameState;
     private Team currentTeam;
@@ -29,6 +30,9 @@ public class GUI {
         questionLabel = new JLabel("", SwingConstants.CENTER);
         questionLabel.setFont(new Font("Arial", Font.BOLD, 16));
 
+        timerLabel = new JLabel("Tempo: --", SwingConstants.CENTER);
+        timerLabel.setFont(new Font("Arial", Font.BOLD, 14));
+
         optionsPanel = new JPanel(new GridLayout(0, 1));
         optionsGroup = new ButtonGroup();
 
@@ -41,6 +45,36 @@ public class GUI {
         frame.add(optionsPanel, BorderLayout.CENTER);
         frame.add(scoreLabel, BorderLayout.SOUTH);
         frame.add(nextButton, BorderLayout.EAST);
+        frame.add(timerLabel, BorderLayout.WEST);
+
+        // REGISTAR GUI como listener do temporizador
+        gameState.setTimerListener(new GameState.TimerUpdateListener() {
+            @Override
+            public void onTimerUpdate(int secondsRemaining) {
+                SwingUtilities.invokeLater(() -> timerLabel.setText("Tempo: " + Math.max(0, secondsRemaining) + "s"));
+            }
+
+            @Override
+            public void onTimerFinished() {
+                // note: esta rotina é chamada UMA vez por GameState devido ao timerFired flag
+                SwingUtilities.invokeLater(() -> {
+                    timerLabel.setText("Tempo: 0s");
+                    JOptionPane.showMessageDialog(frame, "Terminou o tempo!");
+
+                    // Passa automaticamente para a próxima pergunta.
+                    // Usar o nextQuestion do GameState (que já cancela timers)
+                    if (!gameState.nextQuestion()) {
+                        questionLabel.setText("Fim do jogo!");
+                        nextButton.setEnabled(false);
+                        // assegura que não há timer activo
+                        // (GameState.nextQuestion já cancela timer, mas por segurança:)
+                        // gameState.cancelRoundTimer(); // método privado — não chamamos aqui
+                    } else {
+                        loadQuestion();
+                    }
+                });
+            }
+        });
 
         loadQuestion();
         frame.pack();
@@ -56,6 +90,7 @@ public class GUI {
         if (q == null) {
             questionLabel.setText("Fim do Quiz!");
             nextButton.setEnabled(false);
+            timerLabel.setText("Tempo: --");
             return;
         }
 
@@ -70,6 +105,9 @@ public class GUI {
 
         optionsPanel.revalidate();
         optionsPanel.repaint();
+
+        // começa o contador (ex.: 30 segundos)
+        gameState.startRoundTimer(30);
     }
 
     private void handleNext() {
@@ -88,24 +126,26 @@ public class GUI {
             return;
         }
 
+        // Ao responder manualmente, queremos também garantir que o timer pára e que
+        // não dispare a rotina de "tempo esgotado". nextQuestion() cancela timers.
         if (selected == q.getCorrect()) {
-            currentTeam.addPlayer(new Player("Dummy", currentTeam.getName())); // só para simular
             gameState.addScore(currentTeam.getName(), q.getPoints());
             JOptionPane.showMessageDialog(frame, "Resposta certa! +" + q.getPoints() + " pontos.");
         } else {
             JOptionPane.showMessageDialog(frame, "Resposta errada!");
         }
 
-        scoreLabel.setText("Pontuação: " + gameState.getTeamScores().get(currentTeam.getName()));
+        scoreLabel.setText("Pontuação: " + gameState.getTeamScores().getOrDefault(currentTeam.getName(), 0));
 
+        // avançar para a próxima pergunta (nextQuestion cancela timer)
         if (!gameState.nextQuestion()) {
             questionLabel.setText("Fim do quiz!");
             nextButton.setEnabled(false);
+            timerLabel.setText("Tempo: --");
         } else {
             loadQuestion();
         }
     }
-
     public static void main(String[] args) {
         QuizCollection qc = JSONLoader.load("resources/questions.json");
         Quiz quiz = qc.getQuizzes().get(0);
@@ -116,4 +156,5 @@ public class GUI {
 
         new GUI(state, team);
     }
+
 }
