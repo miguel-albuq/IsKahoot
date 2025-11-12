@@ -11,34 +11,26 @@ import java.util.*;
  */
 public class GameState {
 
-    // Identificação do jogo (para fases futuras — servidor)
     private String gameCode;
 
-    // Configuração do jogo (servidor valida nº de equipas e jogadores)
     private int expectedNumTeams;
     private int expectedPlayersPerTeam;
 
-    // Equipas e pontuação (Fase 2)
     private Map<String, Team> teams = new HashMap<>();
 
-    // Perguntas e progresso do jogo
     private Quiz quiz;
     private int currentQuestionIndex = 0;
 
-    // Respostas da ronda (para fases futuras — concorrência)
     private Map<Player, Integer> roundAnswers = new HashMap<>();
 
-    // Estruturas para perguntas individuais e de equipa (placeholders)
     private ModifiedCountdownLatch latch;   // perguntas individuais
     private TeamBarrier barrier;            // perguntas de equipa
 
-    // Temporizador da ronda (VISÍVEL NA GUI)
     private Timer roundTimer;
     private int timeRemaining;
     private boolean roundActive = false;
     private boolean gameFinished = false;
 
-    // garante que onTimerFinished é chamado apenas uma vez por ronda
     private boolean timerFired = false;
 
     // Listener para a GUI saber quando o tempo muda

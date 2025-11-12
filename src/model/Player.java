@@ -1,17 +1,17 @@
 package model;
 
 public class Player {
-    private String name;
+    private String username;
     private String teamName;
     private int score = 0;
 
-    public Player(String name, String teamName) {
-        this.name = name;
+    public Player(String username, String teamName) {
+        this.username = username;
         this.teamName = teamName;
     }
 
     public String getName() {
-        return name;
+        return username;
     }
 
     public String getTeamName() {

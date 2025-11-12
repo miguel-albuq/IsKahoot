@@ -18,12 +18,16 @@ public class GUI {
 
     private GameState gameState;
     private Team currentTeam;
+    private String username;   // <- novo
 
-    public GUI(GameState state, Team team) {
+
+    public GUI(GameState state, Team team, String username) {
         this.gameState = state;
         this.currentTeam = team;
+        this.username = username;
 
-        frame = new JFrame("IsKahoot");
+
+        frame = new JFrame("IsKahoot" + " | " + this.username);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
@@ -147,14 +151,7 @@ public class GUI {
         }
     }
     public static void main(String[] args) {
-        QuizCollection qc = JSONLoader.load("resources/questions.json");
-        Quiz quiz = qc.getQuizzes().get(0);
 
-        GameState state = new GameState(quiz);
-        Team team = new Team("Team A");
-        state.addTeam(team);
-
-        new GUI(state, team);
     }
 
 }
