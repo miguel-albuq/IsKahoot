@@ -1,22 +1,28 @@
-package model;
+package server;
 
 import concurrency.ModifiedCountdownLatch;
 import concurrency.TeamBarrier;
 
 import java.util.*;
+import utils.*;
+
+import java.util.concurrent.*;
+import model.*;
 
 /**
- * Representa o estado de UM jogo ativo no servidor.
- * Guarda equipas, jogadores, perguntas, pontuações e controlo de rondas.
+ * Representa o estado de UM jogo ativo no servidor, com a gestão das equipas, jogadores, rondas e comunicação.
  */
-public class GameState {
+public class Game {
 
     private String gameCode;
-
-    private int expectedNumTeams;
-    private int expectedPlayersPerTeam;
+    private  int expectedNumTeams;
+    private  int expectedPlayersPerTeam;
+    private  int numQuestions;
+    private  int port;
 
     private Map<String, Team> teams = new HashMap<>();
+    private Set<Integer> readyTeams = ConcurrentHashMap.newKeySet();
+    private Set<String> allUsernames = ConcurrentHashMap.newKeySet();
 
     private Quiz quiz;
     private int currentQuestionIndex = 0;
@@ -26,12 +32,14 @@ public class GameState {
     private ModifiedCountdownLatch latch;   // perguntas individuais
     private TeamBarrier barrier;            // perguntas de equipa
 
-    private Timer roundTimer;
+    // Na classe Game, substituindo a variável roundTimer de tipo Timer por uma instância do seu Timer
+    private utils.Timer roundTimer;
     private int timeRemaining;
     private boolean roundActive = false;
     private boolean gameFinished = false;
-
     private boolean timerFired = false;
+
+    private List<PlayerHandler> clients = Collections.synchronizedList(new ArrayList<>());
 
     // Listener para a GUI saber quando o tempo muda
     public interface TimerUpdateListener {
@@ -45,21 +53,19 @@ public class GameState {
         this.timerListener = listener;
     }
 
-    // CONSTRUTORES
-    public GameState(Quiz quiz) {
-        this.quiz = quiz;
-        this.expectedNumTeams = 1;
-        this.expectedPlayersPerTeam = 1;
-    }
-
-    public GameState(Quiz quiz, String gameCode, int expectedNumTeams, int expectedPlayersPerTeam) {
-        this.quiz = quiz;
+    // Construtores
+    public Game(String gameCode, int expectedNumTeams, int expectedPlayersPerTeam, int numQuestions, int port) {
         this.gameCode = gameCode;
         this.expectedNumTeams = expectedNumTeams;
         this.expectedPlayersPerTeam = expectedPlayersPerTeam;
+        this.numQuestions = numQuestions;
+        this.port = port;
     }
 
-    // GESTÃO DE EQUIPAS E JOGADORES (fase 2)
+    public Game(Quiz quiz) {
+        this.quiz = quiz;
+    }
+
     public synchronized boolean addTeam(Team team) {
         teams.put(team.getName(), team);
         return true;
@@ -79,28 +85,49 @@ public class GameState {
         );
     }
 
-    // PERGUNTAS E CICLO DE JOGO (fase 2)
+
+    // Gestão de Equipas e Jogadores
+    public synchronized String tryJoin(String username, int teamNo) {
+        if (teamNo < 1) return "Equipa inválida";
+        if (!allUsernames.add(username)) return "Username já em uso";
+        var team = teams.computeIfAbsent("Team " + teamNo, k -> new Team("Team " + teamNo));
+        if (team.getMembers().size() >= expectedPlayersPerTeam) return "Equipa cheia";
+        team.addPlayer(new Player(username, String.valueOf(teamNo))); // Adiciona jogador
+        if (team.getMembers().size() == expectedPlayersPerTeam) readyTeams.add(teamNo);
+        return null;
+    }
+
+    public int teamsReady() {
+        return readyTeams.size();
+    }
+
+    public boolean shouldStart() {
+        return readyTeams.size() >= expectedNumTeams;
+    }
+
+    public void addClient(PlayerHandler h) {
+        clients.add(h);
+    }
+
+    public void broadcastStart() {
+        synchronized (clients) { clients.forEach(PlayerHandler::sendStart); }
+    }
+
+    public void broadcastLobby() {
+        synchronized (clients) { clients.forEach(PlayerHandler::sendLobby); }
+    }
+
+    // Perguntas e Ciclo de Jogo
     public synchronized Question getCurrentQuestion() {
         if (currentQuestionIndex < quiz.getQuestions().size())
             return quiz.getQuestions().get(currentQuestionIndex);
         return null;
     }
 
-    /**
-     * Avança para a próxima pergunta.
-     * Cancela qualquer timer em curso para evitar timers órfãos.
-     * Limpa respostas da ronda anterior.
-     *
-     * @return true se existirem mais perguntas; false se chegámos ao fim.
-     */
     public synchronized boolean nextQuestion() {
-        // cancelar timer activo (se houver)
         cancelRoundTimer();
-
         currentQuestionIndex++;
         roundAnswers.clear();
-
-        // reset flag de timer para a próxima ronda
         timerFired = false;
 
         boolean hasMore = currentQuestionIndex < quiz.getQuestions().size();
@@ -111,7 +138,7 @@ public class GameState {
         return hasMore;
     }
 
-    // PONTUAÇÃO (fase 2)
+    // Pontuação
     public synchronized void addScore(String teamName, int points) {
         Team t = teams.get(teamName);
         if (t != null) t.addPoints(points);
@@ -123,71 +150,53 @@ public class GameState {
         return scores;
     }
 
-    // TEMPORIZADOR (VISÍVEL NA GUI) — já funcional e seguro contra repetição
-    /**
-     * Inicia um temporizador para a ronda atual. Cancela o timer anterior caso exista.
-     *
-     * @param seconds segundos iniciais do contador (ex.: 30)
-     */
+    // Temporizador
     public synchronized void startRoundTimer(int seconds) {
-        // cancelar se anteriormente havia um timer
-        cancelRoundTimer();
+        cancelRoundTimer(); // Cancela o timer anterior, se existir
 
         this.timeRemaining = seconds;
         this.roundActive = true;
         this.timerFired = false;
 
-        // notifica GUI do valor inicial imediatamente
         if (timerListener != null) {
             try {
                 timerListener.onTimerUpdate(timeRemaining);
             } catch (Exception ignored) {}
         }
 
-        roundTimer = new Timer("GameState-RoundTimer-" + System.identityHashCode(this));
-
-        // Agendamos a tarefa com atraso de 1s para evitar decremento imediato
-        roundTimer.scheduleAtFixedRate(new TimerTask() {
+        // Inicializa o novo temporizador da classe utils.Timer
+        roundTimer = new utils.Timer(timeRemaining, new utils.Timer.TimerUpdateListener() {
             @Override
-            public void run() {
-                synchronized (GameState.this) {
-                    if (timerFired) {
-                        // já notificámos fim desta ronda — garantir que a task não faz nada
-                        return;
-                    }
-
-                    timeRemaining--;
-
-                    // notificar atualização
+            public void onTimerUpdate(int secondsRemaining) {
+                synchronized (Game.this) {
+                    timeRemaining = secondsRemaining;
                     if (timerListener != null) {
                         try {
                             timerListener.onTimerUpdate(timeRemaining);
                         } catch (Exception ignored) {}
                     }
-
-                    if (timeRemaining <= 0 && !timerFired) {
-                        timerFired = true;
-                        roundActive = false;
-                        // cancelamos o timer e notificamos apenas UMA vez
-                        cancelRoundTimer();
-
-                        if (timerListener != null) {
-                            try {
-                                timerListener.onTimerFinished();
-                            } catch (Exception ignored) {}
-                        }
-
-                        // método para lidar com timeout (placeholder)
-                        endRoundDueToTimeout();
-                    }
                 }
             }
-        }, 1000L, 1000L);
+
+            @Override
+            public void onTimerFinished() {
+                synchronized (Game.this) {
+                    roundActive = false;
+                    if (timerListener != null) {
+                        try {
+                            timerListener.onTimerFinished();
+                        } catch (Exception ignored) {}
+                    }
+                    endRoundDueToTimeout(); // A lógica de término da rodada
+                }
+            }
+        });
+
+        // Inicia o temporizador
+        roundTimer.start();
     }
 
-    /**
-     * Cancela (se existir) o timer da ronda atual.
-     */
+
     private synchronized void cancelRoundTimer() {
         if (roundTimer != null) {
             try {
@@ -197,23 +206,25 @@ public class GameState {
         }
     }
 
-    /**
-     * Chamado quando o tempo de uma ronda termina. Por agora é placeholder:
-     * a GUI é notificada pelo listener e toma as acções visuais / navegação.
-     * Na fase servidor este método fará processamento de respostas/fim de ronda.
-     */
     public synchronized void endRoundDueToTimeout() {
-        // placeholder — implementar lógica de servidor / contagem de respostas daqui a fases futuras
+        // Placeholder para a lógica de servidor / contagem de respostas
     }
 
-    /**
-     * Envia uma resposta (placeholder — será sincronizado com estruturas de concorrência depois).
-     */
     public synchronized void submitAnswer(Player p, int answerIndex) {
         roundAnswers.put(p, answerIndex);
     }
 
-    public String getGameCode() { return gameCode; }
+    public String getGameCode() {
+        return gameCode;
+    }
 
-    public boolean isGameFinished() { return gameFinished; }
+    public boolean isGameFinished() {
+        return gameFinished;
+    }
+
+    // Inside Game class
+    public int expectedTeams() {
+        return expectedNumTeams;
+    }
+
 }

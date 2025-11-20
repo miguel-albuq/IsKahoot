@@ -3,6 +3,7 @@ package client;
 import shared.Messages.*;
 import model.*;
 import utils.JSONLoader;
+import server.*;
 
 import javax.swing.SwingUtilities;
 import java.net.*;
@@ -53,12 +54,12 @@ public class MainClient {
                         Quiz quiz = qc.getQuizzes().get(0); // usa o primeiro (ou escolhe por nome)
 
                         // 2) Criar GameState e Team deste cliente
-                        GameState state = new GameState(quiz);
+                        Game state = new Game(quiz);
                         Team team = new Team("Team " + teamNo); // ou "Team " + teamNo + " (" + username + ")"
                         state.addTeam(team);
 
                         // 3) Lançar a GUI no Event Dispatch Thread (Swing)
-                        final GameState st = state;
+                        final Game st = state;
                         final Team tm = team;
                         final String user = username;
                         SwingUtilities.invokeLater(() -> new GUI(st, tm, username));

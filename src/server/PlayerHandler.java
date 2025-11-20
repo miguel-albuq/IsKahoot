@@ -7,10 +7,10 @@ public class PlayerHandler implements Runnable {
 
 // server/PlayerHandler.java
 
-        private final Socket s; private final GameRoom room;
+        private final Socket s; private final Game room;
         private ObjectInputStream in; private ObjectOutputStream out;
 
-        public PlayerHandler(Socket s, GameRoom r){ this.s=s; this.room=r; }
+        public PlayerHandler(Socket s, Game r){ this.s=s; this.room=r; }
 
         @Override public void run(){
             try (s) {
@@ -25,7 +25,7 @@ public class PlayerHandler implements Runnable {
                 String err = room.tryJoin(jr.username(), jr.teamNo());
                 if (err != null) { send(Envelope.of(MsgType.JOIN_ERR, new JoinErr(err))); return; }
 
-                send(Envelope.of(MsgType.JOIN_OK, new JoinOk(room.gameCode())));
+                send(Envelope.of(MsgType.JOIN_OK, new JoinOk(room.getGameCode())));
                 room.broadcastLobby();
 
                 if (room.shouldStart()) room.broadcastStart(); // começa quando 4 equipas estiverem prontas
@@ -37,7 +37,7 @@ public class PlayerHandler implements Runnable {
 
         private void send(Envelope e){ try { out.writeObject(e); out.flush(); } catch(IOException ignored){} }
         public void sendLobby(){ send(Envelope.of(MsgType.LOBBY, new Lobby(room.teamsReady(), room.expectedTeams()))); }
-        public void sendStart(){ send(Envelope.of(MsgType.START, new Start(room.gameCode()))); }
+        public void sendStart(){ send(Envelope.of(MsgType.START, new Start(room.getGameCode()))); }
 
 
 

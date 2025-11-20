@@ -1,7 +1,7 @@
 package client;
 
 import model.*;
-import utils.JSONLoader;
+import server.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -16,12 +16,12 @@ public class GUI {
     private JButton nextButton;
     private JLabel timerLabel;
 
-    private GameState gameState;
+    private Game gameState;
     private Team currentTeam;
     private String username;   // <- novo
 
 
-    public GUI(GameState state, Team team, String username) {
+    public GUI(Game state, Team team, String username) {
         this.gameState = state;
         this.currentTeam = team;
         this.username = username;
@@ -52,7 +52,7 @@ public class GUI {
         frame.add(timerLabel, BorderLayout.WEST);
 
         // REGISTAR GUI como listener do temporizador
-        gameState.setTimerListener(new GameState.TimerUpdateListener() {
+        gameState.setTimerListener(new Game.TimerUpdateListener() {
             @Override
             public void onTimerUpdate(int secondsRemaining) {
                 SwingUtilities.invokeLater(() -> timerLabel.setText("Tempo: " + Math.max(0, secondsRemaining) + "s"));

@@ -11,7 +11,7 @@ public class MainServer {
 
             String gameCode = UUID.randomUUID().toString().substring(0,8).toUpperCase(); // código único. :contentReference[oaicite:2]{index=2}
             int port = 5050;
-            var room = new GameRoom(gameCode, expectedTeams, playersPerTeam,  numQ , port );
+            var room = new Game(gameCode, expectedTeams, playersPerTeam,  numQ , port );
 
             try (ServerSocket ss = new ServerSocket(port)) {
                 System.out.printf("Game %s aberto no porto %d%n", gameCode, port);
