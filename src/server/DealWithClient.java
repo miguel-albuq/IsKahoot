@@ -3,14 +3,14 @@ import shared.Messages.*;
 
 import java.net.*; import java.io.*;
 
-public class PlayerHandler implements Runnable {
+public class DealWithClient implements Runnable {
 
-// server/PlayerHandler.java
+// server/DealWithClient.java
 
-        private final Socket s; private final Game room;
+        private final Socket s; private final GameState room;
         private ObjectInputStream in; private ObjectOutputStream out;
 
-        public PlayerHandler(Socket s, Game r){ this.s=s; this.room=r; }
+        public DealWithClient(Socket s, GameState r){ this.s=s; this.room=r; }
 
         @Override public void run(){
             try (s) {

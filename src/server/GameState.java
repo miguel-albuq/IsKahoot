@@ -4,7 +4,6 @@ import concurrency.ModifiedCountdownLatch;
 import concurrency.TeamBarrier;
 
 import java.util.*;
-import utils.*;
 
 import java.util.concurrent.*;
 import model.*;
@@ -12,7 +11,7 @@ import model.*;
 /**
  * Representa o estado de UM jogo ativo no servidor, com a gestão das equipas, jogadores, rondas e comunicação.
  */
-public class Game {
+public class GameState {
 
     private String gameCode;
     private  int expectedNumTeams;
@@ -32,14 +31,14 @@ public class Game {
     private ModifiedCountdownLatch latch;   // perguntas individuais
     private TeamBarrier barrier;            // perguntas de equipa
 
-    // Na classe Game, substituindo a variável roundTimer de tipo Timer por uma instância do seu Timer
+    // Na classe GameState, substituindo a variável roundTimer de tipo Timer por uma instância do seu Timer
     private utils.Timer roundTimer;
     private int timeRemaining;
     private boolean roundActive = false;
     private boolean gameFinished = false;
     private boolean timerFired = false;
 
-    private List<PlayerHandler> clients = Collections.synchronizedList(new ArrayList<>());
+    private List<DealWithClient> clients = Collections.synchronizedList(new ArrayList<>());
 
     // Listener para a GUI saber quando o tempo muda
     public interface TimerUpdateListener {
@@ -54,7 +53,7 @@ public class Game {
     }
 
     // Construtores
-    public Game(String gameCode, int expectedNumTeams, int expectedPlayersPerTeam, int numQuestions, int port) {
+    public GameState(String gameCode, int expectedNumTeams, int expectedPlayersPerTeam, int numQuestions, int port) {
         this.gameCode = gameCode;
         this.expectedNumTeams = expectedNumTeams;
         this.expectedPlayersPerTeam = expectedPlayersPerTeam;
@@ -62,7 +61,7 @@ public class Game {
         this.port = port;
     }
 
-    public Game(Quiz quiz) {
+    public GameState(Quiz quiz) {
         this.quiz = quiz;
     }
 
@@ -105,16 +104,16 @@ public class Game {
         return readyTeams.size() >= expectedNumTeams;
     }
 
-    public void addClient(PlayerHandler h) {
+    public void addClient(DealWithClient h) {
         clients.add(h);
     }
 
     public void broadcastStart() {
-        synchronized (clients) { clients.forEach(PlayerHandler::sendStart); }
+        synchronized (clients) { clients.forEach(DealWithClient::sendStart); }
     }
 
     public void broadcastLobby() {
-        synchronized (clients) { clients.forEach(PlayerHandler::sendLobby); }
+        synchronized (clients) { clients.forEach(DealWithClient::sendLobby); }
     }
 
     // Perguntas e Ciclo de Jogo
@@ -168,7 +167,7 @@ public class Game {
         roundTimer = new utils.Timer(timeRemaining, new utils.Timer.TimerUpdateListener() {
             @Override
             public void onTimerUpdate(int secondsRemaining) {
-                synchronized (Game.this) {
+                synchronized (GameState.this) {
                     timeRemaining = secondsRemaining;
                     if (timerListener != null) {
                         try {
@@ -180,7 +179,7 @@ public class Game {
 
             @Override
             public void onTimerFinished() {
-                synchronized (Game.this) {
+                synchronized (GameState.this) {
                     roundActive = false;
                     if (timerListener != null) {
                         try {
@@ -222,7 +221,7 @@ public class Game {
         return gameFinished;
     }
 
-    // Inside Game class
+    // Inside GameState class
     public int expectedTeams() {
         return expectedNumTeams;
     }

@@ -1,5 +1,6 @@
 package server;
-import java.net.*; import java.io.*; import java.util.*;
+import java.net.*;
+import java.util.*;
 import shared.Codes;
 
 public class MainServer {
@@ -11,11 +12,11 @@ public class MainServer {
 
             String gameCode = UUID.randomUUID().toString().substring(0,8).toUpperCase(); // código único. :contentReference[oaicite:2]{index=2}
             int port = 5050;
-            var room = new Game(gameCode, expectedTeams, playersPerTeam,  numQ , port );
+            var room = new GameState(gameCode, expectedTeams, playersPerTeam,  numQ , port );
 
             try (ServerSocket ss = new ServerSocket(port)) {
-                System.out.printf("Game %s aberto no porto %d%n", gameCode, port);
-                while (true) new Thread(new PlayerHandler(ss.accept(), room)).start(); // DealWithClient. :contentReference[oaicite:3]{index=3}
+                System.out.printf("GameState %s aberto no porto %d%n", gameCode, port);
+                while (true) new Thread(new DealWithClient(ss.accept(), room)).start(); // DealWithClient. :contentReference[oaicite:3]{index=3}
             }
         }
 

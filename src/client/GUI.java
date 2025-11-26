@@ -16,12 +16,12 @@ public class GUI {
     private JButton nextButton;
     private JLabel timerLabel;
 
-    private Game gameState;
+    private GameState gameState;
     private Team currentTeam;
     private String username;   // <- novo
 
 
-    public GUI(Game state, Team team, String username) {
+    public GUI(GameState state, Team team, String username) {
         this.gameState = state;
         this.currentTeam = team;
         this.username = username;
@@ -52,7 +52,7 @@ public class GUI {
         frame.add(timerLabel, BorderLayout.WEST);
 
         // REGISTAR GUI como listener do temporizador
-        gameState.setTimerListener(new Game.TimerUpdateListener() {
+        gameState.setTimerListener(new GameState.TimerUpdateListener() {
             @Override
             public void onTimerUpdate(int secondsRemaining) {
                 SwingUtilities.invokeLater(() -> timerLabel.setText("Tempo: " + Math.max(0, secondsRemaining) + "s"));
@@ -126,13 +126,13 @@ public class GUI {
         }
 
         if (selected == -1) {
-            JOptionPane.showMessageDialog(frame, "Seleciona uma resposta!");
+            JOptionPane.showMessageDialog(frame, "Seleciona uma respostaa!");
             return;
         }
 
         // Ao responder manualmente, queremos também garantir que o timer pára e que
         // não dispare a rotina de "tempo esgotado". nextQuestion() cancela timers.
-        if (selected == q.getCorrect()) {
+        if (selected == q.getCorrectAnswer()) {
             gameState.addScore(currentTeam.getName(), q.getPoints());
             JOptionPane.showMessageDialog(frame, "Resposta certa! +" + q.getPoints() + " pontos.");
         } else {

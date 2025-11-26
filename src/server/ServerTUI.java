@@ -6,13 +6,13 @@ public class ServerTUI {
 
     // server/ServerTUI.java
 
-        public Game createGameInteractively() {
+        public GameState createGameInteractively() {
             Scanner sc = new Scanner(System.in);
             System.out.print("new <numEquipas> <jogadoresPorEquipa> <numPerguntas>: ");
             int teams = sc.nextInt(), ppl = sc.nextInt(), q = sc.nextInt();
             String code = Codes.newGameCode();
             int port = 5050; // ou leres de args; servidor lança sem args e só aceita clientes após "new" (enunciado). :contentReference[oaicite:1]{index=1}
-            return new Game(code, teams, ppl, q, port);
+            return new GameState(code, teams, ppl, q, port);
         }
 
 

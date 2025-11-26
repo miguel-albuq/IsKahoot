@@ -1,13 +1,20 @@
 package model;
 
-import java.util.List;
+import java.util.*;
 
-/**
- * Usado apenas para ler o JSON com o array "quizzes".
- */
 public class QuizCollection {
     private List<Quiz> quizzes;
 
+    public QuizCollection() {
+        quizzes = new ArrayList<>();
+    }
+
+    // Adicionar um quiz ao QuizCollection
+    public void addQuiz(Quiz quiz) {
+        quizzes.add(quiz);
+    }
+
+    // Obter a lista de quizzes
     public List<Quiz> getQuizzes() {
         return quizzes;
     }
